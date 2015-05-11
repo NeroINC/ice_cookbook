@@ -39,8 +39,9 @@ artifact_deploy 'ice' do
     artifact_checksum node['ice']['checksum']
   end
   deploy_to node['tomcat']['webapp_dir']
-  owner node['tomcat']['user']
-  group node['tomcat']['group']
+  # Run as root to avoid errors in OpsWork deployment
+  owner "root"
+  group "root"
   skip_manifest_check true
   keep 2
   should_migrate false
@@ -75,6 +76,15 @@ artifact_deploy 'ice' do
     end
   }
 
+  after_deploy proc {
+    # Fix ownership
+    execute "chown-data-www" do
+      command "chown -R #{node['tomcat']['user']}:#{node['tomcat']['group']} #{node['tomcat']['webapp_dir']}"
+      user "root"
+      action :run
+    end
+  }
+  
   configure proc {
     # Create ice.properties file
     template "#{release_path}/WEB-INF/classes/ice.properties" do
